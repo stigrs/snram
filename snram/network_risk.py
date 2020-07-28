@@ -91,6 +91,14 @@ class NetworkRisk:
             a_inv += 1.0 / a_arc[i]
 
         return (t_sum - self._attack_budget) / a_inv
+    
+    def _compute_lambda_prevent(self):
+        """Compute Lagrange multiplier for prevent allocation."""
+        vuln = self.vulnerability(self._prevent_cost)
+        cons = self.consequence(self._response_cost)
+        g_node = self._topology.node_degree_centrality()
+        g_arc = self._topology.arc_betweenness_centrality()
+        
 
     def _compute_attack_cost(self):
         """Compute attack allocation cost."""
