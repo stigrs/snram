@@ -70,8 +70,8 @@ class NetworkRisk:
         """Compute Lagrange multiplier for threat allocation."""
         vuln = self.vulnerability(self._prevent_cost)
         cons = self.consequence(self._response_cost)
-        g_node = self._topology.node_degree_centrality()
-        g_arc = self._topology.arc_betweenness_centrality()
+        d_node = self._topology.node_degree_centrality()
+        d_arc = self._topology.arc_betweenness_centrality()
         a_node = self._alpha(self._nodes)
         a_arc = self._alpha(self._arcs)
 
@@ -80,9 +80,9 @@ class NetworkRisk:
 
         t_sum = 0.0
         for i in range(n):
-            t_sum += np.log(g_node[i] * vuln[i] * cons[i]) / a_node[i]
+            t_sum += np.log(d_node[i] * vuln[i] * cons[i]) / a_node[i]
         for i in range(m):
-            t_sum += np.log(g_arc[i] * vuln[n + i] * cons[n + i]) / a_arc[i]
+            t_sum += np.log(d_arc[i] * vuln[n + i] * cons[n + i]) / a_arc[i]
 
         a_inv = 0.0
         for i in range(n):
@@ -96,9 +96,10 @@ class NetworkRisk:
         """Compute Lagrange multiplier for prevent allocation."""
         vuln = self.vulnerability(self._prevent_cost)
         cons = self.consequence(self._response_cost)
-        g_node = self._topology.node_degree_centrality()
-        g_arc = self._topology.arc_betweenness_centrality()
-        
+        d_node = self._topology.node_degree_centrality()
+        d_arc = self._topology.arc_betweenness_centrality()
+        g_node = self._gamma(self._nodes)
+        g_arc = self._gamma(self._arcs)
 
     def _compute_attack_cost(self):
         """Compute attack allocation cost."""
