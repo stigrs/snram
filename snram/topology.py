@@ -194,6 +194,20 @@ class NetworkTopology:
         if filename:
             plt.savefig(filename, dpi=dpi)
 
+    def node_degree_centrality(self):
+        """Compute normalised degree centrality for the nodes."""
+        graph = self.get_graph_with_attackable_nodes()
+        degree = list(nx.degree_centrality(graph).values())
+        degree /= np.max(degree)
+        return degree
+
+    def arc_betweenness_centrality(self):
+        """Compute normalised arc betweenness centrality."""
+        graph = self.get_graph_with_attackable_nodes()
+        betweenness = list(nx.edge_betweenness_centrality(graph).values())
+        betweenness /= np.max(betweenness)
+        return betweenness
+
     def find_critical_asset(self, asset, attribute):
         """Find index and maximum value for the given asset attribute."""
         val = asset.loc[asset["attackable"] == asset["attackable"].max()]
