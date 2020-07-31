@@ -161,9 +161,13 @@ class NetworkRisk:
         for i in range(n):
             self._attack_cost[i] = (
                 np.log(d_node[i] * vuln[i] * cons[i]) - lambda_t) / a_node[i]
+            if self._attack_cost[i] < 0.0:
+                self._attack_cost[i] = 0.0
         for i in range(m):
             self._attack_cost[n + i] = (
                 np.log(d_arc[i] * vuln[n + i] * cons[n + i]) - lambda_t) / a_arc[i]
+            if self._attack_cost[n + i] < 0.0:
+                self._attack_cost[n + i] = 0.0
 
         return self._attack_cost
 
@@ -183,8 +187,12 @@ class NetworkRisk:
         
         for i in range(n):
             self._prevent_cost[i] = (np.log(d_node[i] * threat[i] * self._nodes["v_init"][i] * cons[i]) - lambda_p) / g_node[i]
+            if self._prevent_cost[i] < 0.0:
+                self._prevent_cost[i] = 0.0
         for i in range(m):
             self._prevent_cost[n + i] = (np.log(d_arc[i] * threat[n + i] * self._arcs["v_init"][i] * cons[n + i]) - lambda_p) / g_arc[i]
+            if self._prevent_cost[n + i] < 0.0:
+                self._prevent_cost[n + i] = 0.0
             
         return self._prevent_cost
     
@@ -204,8 +212,12 @@ class NetworkRisk:
         
         for i in range(n):
             self._response_cost[i] = (np.log(d_node[i] * threat[i] * vuln[i] * self._nodes["c_init"][i]) - lambda_r) / b_node[i]
+            if self._response_cost[i] < 0.0:
+                self._reaponse_cost[i] = 0.0
         for i in range(m):
             self._response_cost[n + i] = (np.log(d_arc[i] * threat[n + i] * vuln[n + i] * self._arcs["c_init"][i]) - lambda_r) / b_arc[i]
+            if self._response_cost[n + i] < 0.0:
+                self._response_cost[n + i] = 0.0
             
         return self._response_cost               
     
