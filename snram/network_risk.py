@@ -94,19 +94,62 @@ class NetworkRisk:
     
     def _compute_lambda_prevent(self):
         """Compute Lagrange multiplier for prevent allocation."""
-        vuln = self.vulnerability(self._prevent_cost)
+        threat = self.threat(self._attack_cost)
         cons = self.consequence(self._response_cost)
         d_node = self._topology.node_degree_centrality()
         d_arc = self._topology.arc_betweenness_centrality()
         g_node = self._gamma(self._nodes)
         g_arc = self._gamma(self._arcs)
+        
+        n = len(self._nodes)
+        m = len(self._arcs)
+        
+        p_sum = 0.0
+        for i in range(n):
+            p_sum += np.log(d_node[i] * threat[i] * self._nodes["v_init"][i] * cons[i]) / g_node[i]
+        for i in range(m):
+            p_sum += np.log(d_arc[i] * threat[n + i] * self._arcs["v_init"][i] * cons[n + i]) / g_arc[i]
+            
+        g_inv = 0.0
+        for i in range(n):
+            g_inv += 1.0 / g_node[i]
+        for i in range(m):
+            g_inv += 1.0 / g_arc[i]
+            
+        return (p_sum - self._prevent_budget) / g_inv
+    
+    def _compute_lambda_response(self):
+        """Compute Lagrange multiplier for response allocation."""
+        threat = self.threat(self._attack_cost)
+        vuln = self.vulnerability(self._prevent_cost)
+        d_node = self._topology.node_degree_centrality()
+        d_arc = self._topology.arc_betweenness_centrality()
+        b_node = self._beta(self._nodes)
+        b_arc = self._beta(self._arcs)
+        
+        n = len(self._nodes)
+        m = len(self._arcs)
+        
+        r_sum = 0.0
+        for i in range(n):
+            r_sum += np.log(d_node[i] * threat[i] * vuln[i] * self._nodes["c_init"][i]) / b_node[i]
+        for i in range(m):
+            r_sum += np.log(d_arc[i] * threat[n + i] * vuln[n + i] * self._arcs["c_init"][i]) / b_arc[i]
+            
+        b_inv = 0.0
+        for i in range(n):
+            b_inv += 1.0 / b_node[i]
+        for i in range(m):
+            b_inv += 1.0 / b_arc[i]
+            
+        return (r_sum - self._response_budget) / b_inv
 
     def _compute_attack_cost(self):
         """Compute attack allocation cost."""
         vuln = self.vulnerability(self._prevent_cost)
         cons = self.consequence(self._response_cost)
-        g_node = self._topology.node_degree_centrality()
-        g_arc = self._topology.arc_betweenness_centrality()
+        d_node = self._topology.node_degree_centrality()
+        d_arc = self._topology.arc_betweenness_centrality()
         a_node = self._alpha(self._nodes)
         a_arc = self._alpha(self._arcs)
 
@@ -117,13 +160,55 @@ class NetworkRisk:
 
         for i in range(n):
             self._attack_cost[i] = (
-                np.log(g_node[i] * vuln[i] * cons[i]) - lambda_t) / a_node[i]
+                np.log(d_node[i] * vuln[i] * cons[i]) - lambda_t) / a_node[i]
         for i in range(m):
             self._attack_cost[n + i] = (
-                np.log(g_arc[i] * vuln[n + i] * cons[n + i]) - lambda_t) / a_arc[i]
+                np.log(d_arc[i] * vuln[n + i] * cons[n + i]) - lambda_t) / a_arc[i]
 
         return self._attack_cost
 
+    def _compute_prevent_cost(self):
+        """Compute prevent allocation cost."""
+        threat = self.threat(self._attack_cost)
+        cons = self.consequence(self._response_cost)
+        d_node = self._topology.node_degree_centrality()
+        d_arc = self._topology.arc_betweenness_centrality()
+        g_node = self._gamma(self._nodes)
+        g_arc = self._gamma(self._arcs)
+        
+        n = len(self._nodes)
+        m = len(self._arcs)
+        
+        lambda_p = self._compute_lambda_prevent()
+        
+        for i in range(n):
+            self._prevent_cost[i] = (np.log(d_node[i] * threat[i] * self._nodes["v_init"][i] * cons[i]) - lambda_p) / g_node[i]
+        for i in range(m):
+            self._prevent_cost[n + i] = (np.log(d_arc[i] * threat[n + i] * self._arcs["v_init"][i] * cons[n + i]) - lambda_p) / g_arc[i]
+            
+        return self._prevent_cost
+    
+    def _compute_response_cost(self):
+        """Compute response allocation cost."""
+        threat = self.threat(self._attack_cost)
+        vuln = self.vulnerability(self._prevent_cost)
+        d_node = self._topology.node_degree_centrality()
+        d_arc = self._topology.arc_betweenness_centrality()
+        b_node = self._beta(self._nodes)
+        b_arc = self._beta(self._arcs)
+        
+        n = len(self._nodes)
+        m = len(self._arcs)
+        
+        lambda_r = self._compute_lambda_response()
+        
+        for i in range(n):
+            self._response_cost[i] = (np.log(d_node[i] * threat[i] * vuln[i] * self._nodes["c_init"][i]) - lambda_r) / b_node[i]
+        for i in range(m):
+            self._response_cost[n + i] = (np.log(d_arc[i] * threat[n + i] * vuln[n + i] * self._arcs["c_init"][i]) - lambda_r) / b_arc[i]
+            
+        return self._response_cost               
+    
     def threat(self, attack_cost):
         """Compute threat function defining the probability of an attack."""
         threat = []
