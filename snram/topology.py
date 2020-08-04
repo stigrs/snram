@@ -10,20 +10,16 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from networkx import nx
-from snram.risk_score import THREAT_MIN, THREAT_MAX
-from snram.risk_score import VULN_MIN, VULN_MAX
-from snram.risk_score import CONS_MIN, CONS_MAX
 
 
 class NetworkTopology:
     """Class for representing network topologies."""
-    def __init__(self, xlsx_file, calc_cap=False):
-        self._node_data = None
-        self._node_set = None
-        self._arc_data = None
-        self._arc_set = None
-        self._graph = None
-        self._calc_cap = calc_cap
+    def __init__(self, xlsx_file):
+        self.node_data = None
+        self.node_set = None
+        self.arc_data = None
+        self.arc_set = None
+        self.graph = None
 
         # Load network topology from Excel file:
         self.load(xlsx_file)
@@ -31,166 +27,47 @@ class NetworkTopology:
     def _create_graph(self):
         # Create graph from list of attackable nodes.
         graph = nx.Graph()
-        for i, j in zip(self._arc_data["start_node"], self._arc_data["end_node"]):
-            graph.add_edge(i, j)
+        #for arc, data in zip(self.arc_set, self.arc_data):
+        #    graph.add_edge(arc[0], arc[1], capasity=data["capacity"])
+        for arc, data in self.arc_data.iterrows():
+            graph.add_edge(arc[0], arc[1], capacity=data["capacity"])
         return graph
 
     def _create_subgraph(self):
         # Create subgraph from list of attackable nodes.
         nodes = []
-        for node in self._node_data():
-            if node["attackable"] == 1:
+        for node, data in self.node_data.iterrows():
+            if data["attackable"] == 1:
                 nodes.append(node)
-        return self._graph.subgraph(nodes)
-
-    def _compute_node_threat(self):
-        # Compute threat index from the degree centrality of the node.
-        threat = list(nx.degree_centrality(self._graph).values())
-        threat = threat / np.max(threat)
-        threat = [int(round(ti * THREAT_MAX)) for ti in threat]
-        return threat
-
-    def _compute_arc_threat(self):
-        # Compute threat index from the edge betweenness centrality.
-        threat = list(nx.edge_betweenness_centrality(self._graph).values())
-        threat = threat / np.max(threat)
-        threat = [int(round(ti * THREAT_MAX)) for ti in threat]
-        return threat
-
-    def _compute_node_risk(self):
-        # Compute node risk = threat * vulnerability * consequence.
-        threat = [THREAT_MIN] * len(self._node_data)
-        vuln = [VULN_MIN] * len(self._node_data)
-        cons = [CONS_MIN] * len(self._node_data)
-        if "threat" in self._node_data:
-            threat = self._node_data["threat"]
-        if "vulnerability" in self._node_data:
-            vuln = self._node_data["vulnerability"]
-        if "consequence" in self._node_data:
-            cons = self._node_data["consequence"]
-        return [t * v * c for t, v, c in zip(threat, vuln, cons)]
-
-    def _compute_arc_risk(self):
-        # Compute link risk = threat * vulnerability * consequence.
-        threat = [THREAT_MIN] * len(self._arc_data)
-        vuln = [VULN_MIN] * len(self._arc_data)
-        cons = [CONS_MIN] * len(self._arc_data)
-        if "threat" in self._node_data:
-            threat = self._arc_data["threat"]
-        if "vulnerability" in self._node_data:
-            vuln = self._arc_data["vulnerability"]
-        if "consequence" in self._node_data:
-            cons = self._arc_data["consequence"]
-        return [t * v * c for t, v, c in zip(threat, vuln, cons)]
-
-    def _compute_arc_capacity(self):
-        # Compute capacity for arc.
-        capacity_def = THREAT_MAX * VULN_MAX * CONS_MAX  # default capacity
-        capacity = [capacity_def for _ in range(len(self._arc_data))]
-        if "risk" in self._arc_data:
-            capacity -= self._arc_data["risk"]
-        return capacity
-
-    def get_graph(self):
-        """Return graph object."""
-        return self._graph
+        return self.graph.subgraph(nodes)
 
     def get_graph_with_attackable_nodes(self):
         """Return graph object with attackable nodes."""
         return self._create_subgraph()
 
-    def get_node_data(self):
-        """Return node data."""
-        return self._node_data
-
-    def get_arc_data(self):
-        """Return arc data."""
-        return self._arc_data
-
-    def get_node_set(self):
-        """Return node set."""
-        return self._node_set
-
-    def get_arc_set(self):
-        """Return arc set."""
-        return self._arc_set
-
-    def set_node_data(self, key, value):
-        """Set node data."""
-        self._node_data[key] = value
-        if key == "threat" or key == "vulnerability" or key == "consequence":
-            self._node_data["risk"] = self._compute_node_risk()
-
-    def set_arc_data(self, key, value):
-        """Set arc data."""
-        self._arc_data[key] = value
-        if key == "threat" or key == "vulnerability" or key == "consequence":
-            self._arc_data["risk"] = self._compute_arc_risk()
-            if self._calc_cap:
-                self._arc_data["capacity"] = self._compute_arc_capacity()
-
     def load(self, xlsx_file):
         """Load network topology from Excel file."""
-        self._node_data = pd.read_excel(xlsx_file, sheet_name="nodes")
-        self._arc_data = pd.read_excel(xlsx_file, sheet_name="arcs")
-        self._arc_data["xbar"] = 0
-        self._graph = self._create_graph()
-        if "threat" not in self._node_data:
-            self._node_data["threat"] = self._compute_node_threat()
-        if "risk" not in self._node_data:
-            self._node_data["risk"] = self._compute_node_risk()
-        if "threat" not in self._arc_data:
-            self._arc_data["threat"] = self._compute_arc_threat()
-        if "risk" not in self._arc_data:
-            self._arc_data["risk"] = self._compute_arc_risk()
-        if "capacity" not in self._arc_data:
-            self._arc_data["capacity"] = self._compute_arc_capacity()
-        self._node_data.set_index(["node"], inplace=True)
-        self._arc_data.set_index(["start_node", "end_node"], inplace=True)
-        self._node_set = self._node_data.index.unique()
-        self._arc_set = self._arc_data.index.unique()
-
-    def print(self):
-        """Print network topology."""
-        print("Network Topology:")
-        print("%s" % ("-" * 70))
-        print("Node\t\tT\tV\tC\tR")
-        print("%s" % ("-" * 70))
-        for i, t_i, v_i, c_i, r_i in zip(self._node_set,
-                                         self._node_data["threat"],
-                                         self._node_data["vulnerability"],
-                                         self._node_data["consequence"],
-                                         self._node_data["risk"]):
-            print("%-12s\t%d\t%d\t%d\t%d" % (i, t_i, v_i, c_i, r_i))
-        print("%s" % ("-" * 70))
-
-        print("%s" % ("-" * 70))
-        print("Arc\t\tT\tV\tC\tR\tQ")
-        print("%s" % ("-" * 70))
-        for i, t_i, v_i, c_i, r_i, q_i in zip(self._arc_set,
-                                              self._arc_data["threat"],
-                                              self._arc_data["vulnerability"],
-                                              self._arc_data["consequence"],
-                                              self._arc_data["risk"],
-                                              self._arc_data["capacity"]):
-            s_i = "(" + str(i[0]) + ", " + str(i[1]) + ")"
-            print("%-12s\t%d\t%d\t%d\t%d\t%d" % (s_i, t_i, v_i, c_i, r_i, q_i))
-        print("%s" % ("-" * 70))
-        print("T = Threat (1-5)")
-        print("V = Vulnerability (1-5)")
-        print("C = Consequence (1-5)")
-        print("R = Risk (T x V x C)")
-        print("Q = Capacity")
+        self.node_data = pd.read_excel(xlsx_file, sheet_name="nodes")
+        self.arc_data = pd.read_excel(xlsx_file, sheet_name="arcs")
+        self.node_data.set_index(["node"], inplace=True)
+        self.arc_data.set_index(["start_node", "end_node"], inplace=True)
+        self.node_set = self.node_data.index.unique()
+        self.arc_set = self.arc_data.index.unique()
+        self.graph = self._create_graph()
 
     def to_excel(self, xlsx_file):
         """Write network topology to Excel file."""
         with pd.ExcelWriter(xlsx_file) as writer:  # pylint: disable=abstract-class-instantiated
-            self._node_data.to_excel(writer, sheet_name="nodes", index=False)
-            self._arc_data.to_excel(writer, sheet_name="arcs", index=False)
+            self.node_data.to_excel(writer, sheet_name="nodes", index=False)
+            self.arc_data.to_excel(writer, sheet_name="arcs", index=False)
 
-    def plot(self, filename=None, dpi=300):
+    def plot(self, filename=None, with_capacity=False, dpi=300):
         """Plot network topology."""
-        nx.draw(self._graph, with_labels=True)
+        pos = nx.spring_layout(self.graph)
+        labels = nx.get_edge_attributes(self.graph, "capacity")
+        nx.draw(self.graph, pos, with_labels=True)
+        if with_capacity:
+            nx.draw_networkx_edge_labels(self.graph, pos, edge_labels=labels)
         if filename:
             plt.savefig(filename, dpi=dpi)
 

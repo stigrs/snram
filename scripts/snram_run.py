@@ -59,7 +59,7 @@ def _parse_args():
                         action="store",
                         dest="interdict",
                         choices=["max-flow", "min-cost-flow", "shortest-path"],
-                        default="max-flow",
+                        default="min-cost-flow",
                         required=False,
                         help="network interdiction problem")
     parser.add_argument("-o", "--solver",

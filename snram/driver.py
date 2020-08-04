@@ -4,9 +4,10 @@
 # LICENSE.txt or http://www.opensource.org/licenses/mit-license.php for terms
 # and conditions.
 
-"""This is the driver for snram."""
+"""This is the driver for SNRAM."""
 
 from snram.topology import NetworkTopology
+from snram.network_risk import NetworkRisk
 from snram.attacker import Attacker
 from snram.defender import Defender
 from snram.stackelberg import stackelberg
@@ -36,20 +37,18 @@ def driver(xlsx_file, **kwargs):
     max_iter = int(kwargs.get("max_iter", 10))
     tee = kwargs.get("tee", False)
 
-    # Should capacity be calculated?
-    calc_cap = True
-    if interdict == "min-cost-flow":
-        calc_cap = False
-
     _print_header()
 
-    # Analyse initial topology:
-    topology = NetworkTopology(xlsx_file, calc_cap)
-    topology.print()
+    # Initialise network topology:
+    topology = NetworkTopology(xlsx_file)
     if png_file:
         topology.plot(png_file)
-    topology.critical_asset_analysis()
 
+    # Conduct network risk assessment:
+    network_risk = NetworkRisk(topology)
+    network_risk.risk_assessment()
+
+    """
     if run_type == "stackelberg":
         topology = stackelberg(topology, budget, max_iter)
     elif run_type == "prepare":
@@ -63,6 +62,7 @@ def driver(xlsx_file, **kwargs):
         topology = attacker.threat()
     elif run_type == "interdict":
         interdiction(topology, interdict, attacks, solver, tee)
+    """
 
     if save_xlsx:
         topology.to_excel(save_xlsx)
