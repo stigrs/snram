@@ -4,7 +4,7 @@
 # LICENSE.txt or http://www.opensource.org/licenses/mit-license.php for terms
 # and conditions.
 
-"""Provides snram test cases."""
+"""Provides SNRAM test cases."""
 
 import os
 import unittest
@@ -15,7 +15,7 @@ from snram.sp_interdict import SPInterdiction
 from snram.min_cost_flow_interdict import MinCostFlowInterdiction
 
 
-class Testsnram(unittest.TestCase):
+class TestSNRAM(unittest.TestCase):
     def test_case1(self):
         # Max-flow interdiction from PyomoGallery.
         ans = [80.0, 10.0, 0.0]
