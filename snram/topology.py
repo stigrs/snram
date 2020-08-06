@@ -8,6 +8,8 @@
 
 import numpy as np
 import pandas as pd
+import matplotlib
+matplotlib.use("TkAgg")
 import matplotlib.pyplot as plt
 from networkx import nx
 
@@ -16,9 +18,9 @@ class NetworkTopology:
     """Class for representing network topologies."""
     def __init__(self, xlsx_file):
         self.node_data = None
+        self.link_data = None
         self.node_set = None
-        self.arc_data = None
-        self.arc_set = None
+        self.link_set = None
         self.graph = None
 
         # Load network topology from Excel file:
@@ -27,10 +29,8 @@ class NetworkTopology:
     def _create_graph(self):
         # Create graph from list of attackable nodes.
         graph = nx.Graph()
-        #for arc, data in zip(self.arc_set, self.arc_data):
-        #    graph.add_edge(arc[0], arc[1], capasity=data["capacity"])
-        for arc, data in self.arc_data.iterrows():
-            graph.add_edge(arc[0], arc[1], capacity=data["capacity"])
+        for link, data in self.link_data.iterrows():
+            graph.add_edge(link[0], link[1], capacity=data["capacity"])
         return graph
 
     def _create_subgraph(self):
@@ -48,18 +48,18 @@ class NetworkTopology:
     def load(self, xlsx_file):
         """Load network topology from Excel file."""
         self.node_data = pd.read_excel(xlsx_file, sheet_name="nodes")
-        self.arc_data = pd.read_excel(xlsx_file, sheet_name="arcs")
+        self.link_data = pd.read_excel(xlsx_file, sheet_name="links")
         self.node_data.set_index(["node"], inplace=True)
-        self.arc_data.set_index(["start_node", "end_node"], inplace=True)
+        self.link_data.set_index(["start_node", "end_node"], inplace=True)
         self.node_set = self.node_data.index.unique()
-        self.arc_set = self.arc_data.index.unique()
+        self.link_set = self.link_data.index.unique()
         self.graph = self._create_graph()
 
     def to_excel(self, xlsx_file):
         """Write network topology to Excel file."""
         with pd.ExcelWriter(xlsx_file) as writer:  # pylint: disable=abstract-class-instantiated
             self.node_data.to_excel(writer, sheet_name="nodes", index=False)
-            self.arc_data.to_excel(writer, sheet_name="arcs", index=False)
+            self.link_data.to_excel(writer, sheet_name="links", index=False)
 
     def plot(self, filename=None, with_capacity=False, dpi=300):
         """Plot network topology."""
@@ -70,6 +70,8 @@ class NetworkTopology:
             nx.draw_networkx_edge_labels(self.graph, pos, edge_labels=labels)
         if filename:
             plt.savefig(filename, dpi=dpi)
+        else:
+            plt.show()
 
     def node_degree_centrality(self):
         """Compute normalised degree centrality for the nodes."""
@@ -78,8 +80,8 @@ class NetworkTopology:
         degree /= np.max(degree)
         return degree
 
-    def arc_betweenness_centrality(self):
-        """Compute normalised arc betweenness centrality."""
+    def link_betweenness_centrality(self):
+        """Compute normalised link betweenness centrality."""
         graph = self.get_graph_with_attackable_nodes()
         betweenness = list(nx.edge_betweenness_centrality(graph).values())
         betweenness /= np.max(betweenness)
@@ -123,20 +125,20 @@ class NetworkTopology:
         print("Node with largest risk:          %s\t\t%d" % (idx, val))
         print()
 
-        # Analyse arcs:
-        idx, val = self.find_critical_asset(self._arc_data, "threat")
+        # Analyse links:
+        idx, val = self.find_critical_asset(self._link_data, "threat")
         sij = "(" + str(idx[0]) + ", " + str(idx[1]) + ")"
-        print("Arc with largest threat:         %-12s\t%d" % (sij, val))
+        print("link with largest threat:         %-12s\t%d" % (sij, val))
 
-        idx, val = self.find_critical_asset(self._arc_data, "vulnerability")
+        idx, val = self.find_critical_asset(self._link_data, "vulnerability")
         sij = "(" + str(idx[0]) + ", " + str(idx[1]) + ")"
-        print("Arc with largest vulnerability:  %-12s\t%d" % (sij, val))
+        print("link with largest vulnerability:  %-12s\t%d" % (sij, val))
 
-        idx, val = self.find_critical_asset(self._arc_data, "consequence")
+        idx, val = self.find_critical_asset(self._link_data, "consequence")
         sij = "(" + str(idx[0]) + ", " + str(idx[1]) + ")"
-        print("Arc with largest consequence:    %-12s\t%d" % (sij, val))
+        print("link with largest consequence:    %-12s\t%d" % (sij, val))
 
-        idx, val = self.find_critical_asset(self._arc_data, "risk")
+        idx, val = self.find_critical_asset(self._link_data, "risk")
         sij = "(" + str(idx[0]) + ", " + str(idx[1]) + ")"
-        print("Arc with largest risk:           %-12s\t%d" % (sij, val))
+        print("link with largest risk:           %-12s\t%d" % (sij, val))
         print("%s\n" % ("-" * 70))

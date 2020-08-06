@@ -26,19 +26,19 @@ class NetworkRisk:
             self.topology.node_data["threat"] = self._compute_node_threat()
         if "risk" not in self.topology.node_data:
             self.topology.node_data["risk"] = self._compute_node_risk()
-        if "threat" not in self.topology.arc_data:
-            self.topology.arc_data["threat"] = self._compute_arc_threat()
-        if "risk" not in self.topology.arc_data:
-            self.topology.arc_data["risk"] = self._compute_arc_risk()
+        if "threat" not in self.topology.link_data:
+            self.topology.link_data["threat"] = self._compute_link_threat()
+        if "risk" not in self.topology.link_data:
+            self.topology.link_data["risk"] = self._compute_link_risk()
 
     def _compute_node_threat(self):
         """Compute threat index from the degree centrality of the node."""
         degree = self.topology.node_degree_centrality()
         return [int(round(di * THREAT_MAX)) for di in degree]
 
-    def _compute_arc_threat(self):
+    def _compute_link_threat(self):
         """Compute threat index from the edge betweenness centrality."""
-        betweenness = self.topology.arc_betweenness_centrality()
+        betweenness = self.topology.link_betweenness_centrality()
         return [int(round(bi * THREAT_MAX)) for bi in betweenness]
 
     def _compute_node_risk(self):
@@ -54,17 +54,17 @@ class NetworkRisk:
             cons = self.topology.node_data["consequence"]
         return [t * v * c for t, v, c in zip(threat, vuln, cons)]
 
-    def _compute_arc_risk(self):
+    def _compute_link_risk(self):
         """Compute link risk = threat * vulnerability * consequence."""
-        threat = [THREAT_MIN] * len(self.topology.arc_data)
-        vuln = [VULN_MIN] * len(self.topology.arc_data)
-        cons = [CONS_MIN] * len(self.topology.arc_data)
-        if "threat" in self.topology.arc_data:
-            threat = self.topology.arc_data["threat"]
-        if "vulnerability" in self.topology.arc_data:
-            vuln = self.topology.arc_data["vulnerability"]
-        if "consequence" in self.topology.arc_data:
-            cons = self.topology.arc_data["consequence"]
+        threat = [THREAT_MIN] * len(self.topology.link_data)
+        vuln = [VULN_MIN] * len(self.topology.link_data)
+        cons = [CONS_MIN] * len(self.topology.link_data)
+        if "threat" in self.topology.link_data:
+            threat = self.topology.link_data["threat"]
+        if "vulnerability" in self.topology.link_data:
+            vuln = self.topology.link_data["vulnerability"]
+        if "consequence" in self.topology.link_data:
+            cons = self.topology.link_data["consequence"]
         return [t * v * c for t, v, c in zip(threat, vuln, cons)]
 
     def risk_assessment(self):
@@ -82,15 +82,15 @@ class NetworkRisk:
         print("%s" % ("-" * 70))
 
         print("%s" % ("-" * 70))
-        print("Arc\t\tT\tV\tC\tR")
+        print("Link\t\tT\tV\tC\tR")
         print("%s" % ("-" * 70))
-        for arc, threat, vuln, cons, risk in zip(self.topology.arc_set,
-                                                 self.topology.arc_data["threat"],
-                                                 self.topology.arc_data["vulnerability"],
-                                                 self.topology.arc_data["consequence"],
-                                                 self.topology.arc_data["risk"]):
-            arc_ij = "(" + str(arc[0]) + ", " + str(arc[1]) + ")"
-            print("%-12s\t%d\t%d\t%d\t%d" % (arc_ij, threat, vuln, cons, risk))
+        for link, threat, vuln, cons, risk in zip(self.topology.link_set,
+                                                 self.topology.link_data["threat"],
+                                                 self.topology.link_data["vulnerability"],
+                                                 self.topology.link_data["consequence"],
+                                                 self.topology.link_data["risk"]):
+            link_ij = "(" + str(link[0]) + ", " + str(link[1]) + ")"
+            print("%-12s\t%d\t%d\t%d\t%d" % (link_ij, threat, vuln, cons, risk))
         print("%s" % ("-" * 70))
         print("T = Threat (1-5)")
         print("V = Vulnerability (1-5)")
