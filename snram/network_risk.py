@@ -67,6 +67,23 @@ class NetworkRisk:
             cons = self.topology.link_data["consequence"]
         return [t * v * c for t, v, c in zip(threat, vuln, cons)]
 
+    def find_critical_asset(self, asset, attribute):
+        """Find index and maximum value for the given asset attribute."""
+        val = asset.loc[asset["attackable"] == asset["attackable"].max()]
+        if attribute == "threat":
+            # Asset with lowest threat and largest vulnerability has largest
+            # attack desirability:
+            val = val.loc[val[attribute] == val[attribute].min()]
+            val = val.loc[val["vulnerability"] == val["vulnerability"].max()]
+            val = val.loc[val["risk"] == val["risk"].max()]
+        else:
+            # Asset with largest risk is most critical:
+            val = val.loc[val[attribute] == val[attribute].max()]
+            val = val.loc[val["risk"] == val["risk"].max()]
+        idx = val.index.values[0]
+        val = val[attribute].values[0]
+        return (idx, val)
+
     def risk_assessment(self):
         """Conduct network risk assessment."""
         print("Network Risk Assessment:")
@@ -85,10 +102,10 @@ class NetworkRisk:
         print("Link\t\tT\tV\tC\tR")
         print("%s" % ("-" * 70))
         for link, threat, vuln, cons, risk in zip(self.topology.link_set,
-                                                 self.topology.link_data["threat"],
-                                                 self.topology.link_data["vulnerability"],
-                                                 self.topology.link_data["consequence"],
-                                                 self.topology.link_data["risk"]):
+                                                  self.topology.link_data["threat"],
+                                                  self.topology.link_data["vulnerability"],
+                                                  self.topology.link_data["consequence"],
+                                                  self.topology.link_data["risk"]):
             link_ij = "(" + str(link[0]) + ", " + str(link[1]) + ")"
             print("%-12s\t%d\t%d\t%d\t%d" % (link_ij, threat, vuln, cons, risk))
         print("%s" % ("-" * 70))
@@ -96,3 +113,44 @@ class NetworkRisk:
         print("V = Vulnerability (1-5)")
         print("C = Consequence (1-5)")
         print("R = Risk (T x V x C)")
+
+    def critical_assets(self):
+        """Identify critical assets."""
+        print("\nCritical Assets:")
+        print("%s" % ("-" * 70))
+        print("                                 Index\t\tValue")
+        print("%s" % ("-" * 70))
+
+        # Analyse nodes:
+        node_data = self.topology.node_data
+        idx, val = self.find_critical_asset(node_data, "threat")
+        print("Node with largest threat:        %s\t\t%d" % (idx, val))
+
+        idx, val = self.find_critical_asset(node_data, "vulnerability")
+        print("Node with largest vulnerability: %s\t\t%d" % (idx, val))
+
+        idx, val = self.find_critical_asset(node_data, "consequence")
+        print("Node with largest consequence:   %s\t\t%d" % (idx, val))
+
+        idx, val = self.find_critical_asset(node_data, "risk")
+        print("Node with largest risk:          %s\t\t%d" % (idx, val))
+        print()
+
+        # Analyse links:
+        link_data = self.topology.link_data
+        idx, val = self.find_critical_asset(link_data, "threat")
+        sij = "(" + str(idx[0]) + ", " + str(idx[1]) + ")"
+        print("Link with largest threat:         %-12s\t%d" % (sij, val))
+
+        idx, val = self.find_critical_asset(link_data, "vulnerability")
+        sij = "(" + str(idx[0]) + ", " + str(idx[1]) + ")"
+        print("Link with largest vulnerability:  %-12s\t%d" % (sij, val))
+
+        idx, val = self.find_critical_asset(link_data, "consequence")
+        sij = "(" + str(idx[0]) + ", " + str(idx[1]) + ")"
+        print("Link with largest consequence:    %-12s\t%d" % (sij, val))
+
+        idx, val = self.find_critical_asset(link_data, "risk")
+        sij = "(" + str(idx[0]) + ", " + str(idx[1]) + ")"
+        print("Link with largest risk:           %-12s\t%d" % (sij, val))
+        print("%s\n" % ("-" * 70))

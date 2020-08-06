@@ -8,8 +8,6 @@
 
 import numpy as np
 import pandas as pd
-import matplotlib
-matplotlib.use("TkAgg")
 import matplotlib.pyplot as plt
 from networkx import nx
 
@@ -70,8 +68,6 @@ class NetworkTopology:
             nx.draw_networkx_edge_labels(self.graph, pos, edge_labels=labels)
         if filename:
             plt.savefig(filename, dpi=dpi)
-        else:
-            plt.show()
 
     def node_degree_centrality(self):
         """Compute normalised degree centrality for the nodes."""
@@ -86,59 +82,3 @@ class NetworkTopology:
         betweenness = list(nx.edge_betweenness_centrality(graph).values())
         betweenness /= np.max(betweenness)
         return betweenness
-
-    def find_critical_asset(self, asset, attribute):
-        """Find index and maximum value for the given asset attribute."""
-        val = asset.loc[asset["attackable"] == asset["attackable"].max()]
-        if attribute == "threat":
-            # Asset with lowest threat and largest vulnerability has largest
-            # attack desirability:
-            val = val.loc[val[attribute] == val[attribute].min()]
-            val = val.loc[val["vulnerability"] == val["vulnerability"].max()]
-            val = val.loc[val["risk"] == val["risk"].max()]
-        else:
-            # Asset with largest risk is most critical:
-            val = val.loc[val[attribute] == val[attribute].max()]
-            val = val.loc[val["risk"] == val["risk"].max()]
-        idx = val.index.values[0]
-        val = val[attribute].values[0]
-        return (idx, val)
-
-    def critical_asset_analysis(self):
-        """Identify critical assets."""
-        print("\nCritical Assets:")
-        print("%s" % ("-" * 70))
-        print("                                 Index\t\tValue")
-        print("%s" % ("-" * 70))
-
-        # Analyse nodes:
-        idx, val = self.find_critical_asset(self._node_data, "threat")
-        print("Node with largest threat:        %s\t\t%d" % (idx, val))
-
-        idx, val = self.find_critical_asset(self._node_data, "vulnerability")
-        print("Node with largest vulnerability: %s\t\t%d" % (idx, val))
-
-        idx, val = self.find_critical_asset(self._node_data, "consequence")
-        print("Node with largest consequence:   %s\t\t%d" % (idx, val))
-
-        idx, val = self.find_critical_asset(self._node_data, "risk")
-        print("Node with largest risk:          %s\t\t%d" % (idx, val))
-        print()
-
-        # Analyse links:
-        idx, val = self.find_critical_asset(self._link_data, "threat")
-        sij = "(" + str(idx[0]) + ", " + str(idx[1]) + ")"
-        print("link with largest threat:         %-12s\t%d" % (sij, val))
-
-        idx, val = self.find_critical_asset(self._link_data, "vulnerability")
-        sij = "(" + str(idx[0]) + ", " + str(idx[1]) + ")"
-        print("link with largest vulnerability:  %-12s\t%d" % (sij, val))
-
-        idx, val = self.find_critical_asset(self._link_data, "consequence")
-        sij = "(" + str(idx[0]) + ", " + str(idx[1]) + ")"
-        print("link with largest consequence:    %-12s\t%d" % (sij, val))
-
-        idx, val = self.find_critical_asset(self._link_data, "risk")
-        sij = "(" + str(idx[0]) + ", " + str(idx[1]) + ")"
-        print("link with largest risk:           %-12s\t%d" % (sij, val))
-        print("%s\n" % ("-" * 70))

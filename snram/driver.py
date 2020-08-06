@@ -48,6 +48,9 @@ def driver(xlsx_file, **kwargs):
     network_risk = NetworkRisk(topology)
     network_risk.risk_assessment()
 
+    # Identify critical assets:
+    network_risk.critical_assets()
+
     """
     if run_type == "stackelberg":
         topology = stackelberg(topology, budget, max_iter)
