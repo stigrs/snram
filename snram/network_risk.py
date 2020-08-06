@@ -70,16 +70,9 @@ class NetworkRisk:
     def find_critical_asset(self, asset, attribute):
         """Find index and maximum value for the given asset attribute."""
         val = asset.loc[asset["attackable"] == asset["attackable"].max()]
-        if attribute == "threat":
-            # Asset with lowest threat and largest vulnerability has largest
-            # attack desirability:
-            val = val.loc[val[attribute] == val[attribute].min()]
-            val = val.loc[val["vulnerability"] == val["vulnerability"].max()]
-            val = val.loc[val["risk"] == val["risk"].max()]
-        else:
-            # Asset with largest risk is most critical:
-            val = val.loc[val[attribute] == val[attribute].max()]
-            val = val.loc[val["risk"] == val["risk"].max()]
+        # Asset with largest risk is most critical:
+        val = val.loc[val[attribute] == val[attribute].max()]
+        val = val.loc[val["risk"] == val["risk"].max()]
         idx = val.index.values[0]
         val = val[attribute].values[0]
         return (idx, val)
@@ -153,4 +146,13 @@ class NetworkRisk:
         idx, val = self.find_critical_asset(link_data, "risk")
         sij = "(" + str(idx[0]) + ", " + str(idx[1]) + ")"
         print("Link with largest risk:           %-12s\t%d" % (sij, val))
-        print("%s\n" % ("-" * 70))
+        print("%s" % ("-" * 70))
+
+        art_pts = self.topology.articulation_points()
+        print("Articulation points: ", end="")
+        if len(art_pts) == 0 or art_pts is None:
+            print("None")
+        else:
+            for node in art_pts:
+                print("%s, " % node, end="")
+            print()

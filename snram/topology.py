@@ -82,3 +82,8 @@ class NetworkTopology:
         betweenness = list(nx.edge_betweenness_centrality(graph).values())
         betweenness /= np.max(betweenness)
         return betweenness
+
+    def articulation_points(self):
+        """Find the articulation points of the topology."""
+        graph = self.get_graph_with_attackable_nodes()
+        return list(nx.articulation_points(graph))
