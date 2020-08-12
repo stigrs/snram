@@ -6,64 +6,89 @@
 
 """Provides an attacker model."""
 
+from itertools import count
 from snram.topology import NetworkTopology
+from snram.network_risk import NetworkRisk
 from snram.risk_score import THREAT_MAX, THREAT_INC
 
 
 class Attacker:
     """Class providing attacker model."""
-    def __init__(self, topology, budget=3):
-        self._topology = None
-        if isinstance(topology, NetworkTopology):
-            self._topology = topology
-        elif isinstance(topology, str): # filename is provided
-            self._topology = NetworkTopology(topology)
+    def __init__(self, network_risk, budget=1):
+        self.network_risk = None
+        if isinstance(network_risk, NetworkRisk):
+            self.network_risk = network_risk
+        elif isinstance(network_risk, NetworkTopology): # topology is provided
+            self.network_risk = NetworkRisk(network_risk)
+        elif isinstance(network_risk, str): # filename is provided
+            self.network_risk = NetworkRisk(network_risk)
         else:
             raise AttributeError("unknown topology provided")
-        self._budget = budget
+        self.budget = budget
 
-    def _increase_arc_threat(self):
-        # Increase threat for the most critical arc.
-        idx, t_old = self._topology.find_critical_asset(
-            self._topology.get_arc_data(), "threat")
-        t_new = t_old + THREAT_INC
-        threat = self._topology.get_arc_data()["threat"]
-        if t_new > THREAT_MAX: # threat cannot be increased above THREAT_MAX
-            threat[idx] = THREAT_MAX
-        else:
-            threat[idx] = t_new
-        self._topology.set_arc_data("threat", threat)
-        return (idx, t_old, t_new)
+    def _increase_asset_threat(self, asset):
+        # Increase threat for the asset that gives largest relative increase
+        # in risk.
+        #
+        # Note: We could also increase the threat for the asset that gives
+        # the largest absolute increase in risk.
+        assert asset == "nodes" or asset == "links"
+        threat_old = self.network_risk.get_threat(asset)
+        vuln = self.network_risk.get_vulnerability(asset)
+        cons = self.network_risk.get_consequence(asset)
+        risk_old = self.network_risk.get_risk(asset)
 
-    def _find_attackable_arcs(self):
-        # Find attackable arcs and attack weights from threat x vulnerability:
-        threat = self._topology.get_arc_data()["threat"]
-        vuln = self._topology.get_arc_data()["vulnerability"]
+        # Brute force; is there a faster way?
+        threat_new = threat_old
+        for i, threat in enumerate(threat_new):
+            threat_new[i] = threat + THREAT_INC
+            if threat_new[i] > THREAT_MAX:
+                threat_new[i] = THREAT_MAX
+
+        risk_new = self.network_risk.compute_risk(threat_new, vuln, cons)
+        indx = 0
+        delta_risk_max = 0
+        for i, r_new, r_old in zip(count(), risk_new, risk_old):
+            delta_risk = (r_new - r_old) / r_old
+            if delta_risk > delta_risk_max:
+                indx = i
+                delta_risk_max = delta_risk
+        threat_old[indx] = threat_new[indx]
+        self.network_risk.set_threat(asset, threat_old)
+        return (indx, threat_old[indx], threat_new[indx])
+
+    def _find_attackable_assets(self, asset):
+        # Find attackable assets and attack weights from threat x vulnerability:
+        assert asset == "nodes" or asset == "links"
+        threat = self.network_risk.get_threat(asset)
+        vuln = self.network_risk.get_vulnerability(asset)
         threat_vuln = threat * vuln
-        arcs = []
-        weights = []
-        for idx, row in self._topology.get_arc_data().iterrows():
+        attackable_assets = []
+        attack_weights = []
+        asset_data = self.network_risk.topology.node_data
+        if asset == "links":
+            asset_data = self.network_risk.topology.link_data
+        for idx, row in asset_data.iterrows():
             if row["attackable"] == 1:
-                arcs.append(idx)
-                weights.append(threat_vuln[idx])
-        return (arcs, weights)
+                attackable_assets.append(idx)
+                attack_weights.append(threat_vuln[idx])
+        return (attackable_assets, attack_weights)
 
-    def maximise_threat(self):
-        """Maximise threat by exploiting vulnerabilities given budget
-        constraint."""
+    def maximise_threat(self, asset):
+        """Maximise threat for given asset given budget constraint."""
+        assert asset == "nodes" or asset == "links"
         res = []
-        for _ in range(self._budget):
-            # Increase threat for most critical arc:
-            idx, t_old, t_new = self._increase_arc_threat()
+        for _ in range(self.budget):
+            # Increase threat for given asset:
+            idx, threat_old, threat_new = self._increase_asset_threat(asset)
 
             # Compute sum of risks:
-            r_sum = self._topology.get_arc_data()["risk"].sum()
-            res.append([idx, t_old, t_new, r_sum])
-        return (res, self._topology)
+            risk_sum = self.network_risk.get_risk("links").sum()
+            res.append([idx, threat_old, threat_new, risk_sum])
+        return (res, self.network_risk.topology)
 
     def threat(self):
         """Run attacker model in threat mode."""
-        res, self._topology = self.maximise_threat()
         print()
         print("======================================================================")
         print("                                                                      ")
@@ -71,15 +96,31 @@ class Attacker:
         print("                                                                      ")
         print("======================================================================")
         print()
-        print("Maximise Threat by Exploiting Arc Vulnerabilities:")
+
+        # Attack nodes:
+        res, self.network_risk.topology = self.maximise_threat("nodes")
+        print("Maximise Threat by Exploiting Node Vulnerabilities:")
+        print("%s" % ("-" * 70))
+        print("#\tNode\t\tT(before)\tT(after)\tR_sum")
+        print("%s" % ("-" * 70))
+        for i in range(self.budget):
+            print("%d\t%-12s\t%d\t\t%d\t\t%d" %
+                  (i, res[i][0], res[i][1], res[i][2], res[i][3]))
+        print("%s" % ("-" * 70))
+
+        # Attack links:
+        res, self.network_risk.topology = self.maximise_threat("links")
+        print("Maximise Threat by Exploiting Link Vulnerabilities:")
         print("%s" % ("-" * 70))
         print("#\tLink\t\tT(before)\tT(after)\tR_sum")
         print("%s" % ("-" * 70))
-        for it in range(self._budget):
-            sij = "(" + str(res[it][0][0]) + ", " + str(res[it][0][1]) + ")"
+        for i in range(self.budget):
+            sij = "(" + str(res[i][0][0]) + ", " + str(res[i][0][1]) + ")"
             print("%d\t%-12s\t%d\t\t%d\t\t%d" %
-                  (it, sij, res[it][1], res[it][2], res[it][3]))
+                  (i, sij, res[i][1], res[i][2], res[i][3]))
         print("%s" % ("-" * 70))
-        self._topology.print()
-        self._topology.critical_asset_analysis()
-        return self._topology
+
+        self.network_risk.topology.print()
+        self.network_risk.critical_asset_analysis()
+
+        return self.network_risk.topology

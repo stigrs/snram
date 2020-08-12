@@ -43,28 +43,103 @@ class NetworkRisk:
 
     def _compute_node_risk(self):
         """Compute node risk = threat * vulnerability * consequence."""
-        threat = [THREAT_MIN] * len(self.topology.node_data)
-        vuln = [VULN_MIN] * len(self.topology.node_data)
-        cons = [CONS_MIN] * len(self.topology.node_data)
         if "threat" in self.topology.node_data:
             threat = self.topology.node_data["threat"]
+        else:
+            threat = [THREAT_MIN] * len(self.topology.node_data)
         if "vulnerability" in self.topology.node_data:
             vuln = self.topology.node_data["vulnerability"]
+        else:
+            vuln = [VULN_MIN] * len(self.topology.node_data)
         if "consequence" in self.topology.node_data:
             cons = self.topology.node_data["consequence"]
-        return [t * v * c for t, v, c in zip(threat, vuln, cons)]
+        else:
+            cons = [CONS_MIN] * len(self.topology.node_data)
+        risk = self.compute_risk(threat, vuln, cons)
+        self.topology.node_data["risk"] = risk
+        return risk
 
     def _compute_link_risk(self):
         """Compute link risk = threat * vulnerability * consequence."""
-        threat = [THREAT_MIN] * len(self.topology.link_data)
-        vuln = [VULN_MIN] * len(self.topology.link_data)
-        cons = [CONS_MIN] * len(self.topology.link_data)
         if "threat" in self.topology.link_data:
             threat = self.topology.link_data["threat"]
+        else:
+            threat = [THREAT_MIN] * len(self.topology.link_data)
         if "vulnerability" in self.topology.link_data:
             vuln = self.topology.link_data["vulnerability"]
+        else:
+            vuln = [VULN_MIN] * len(self.topology.link_data)
         if "consequence" in self.topology.link_data:
             cons = self.topology.link_data["consequence"]
+        else:
+            cons = [CONS_MIN] * len(self.topology.link_data)
+        risk = self.compute_risk(threat, vuln, cons)
+        self.topology.link_data["risk"] = risk
+        return risk
+
+    def get_threat(self, asset):
+        """Get threat vector for given asset."""
+        if asset == "nodes":
+            return self.topology.node_data["threat"]
+        elif asset == "links":
+            return self.topology.link_data["threat"]
+
+    def set_threat(self, asset, threat):
+        """Set threat vector for given asset and update risk vector."""
+        if asset == "nodes":
+            assert len(self.topology.node_data["threat"]) == len(threat)
+            self.topology.node_data["threat"] = threat
+            self._compute_node_risk()
+        elif asset == "links":
+            assert len(self.topology.link_data["threat"]) == len(threat)
+            self.topology.link_data["threat"] = threat
+            self._compute_link_risk()
+
+    def get_vulnerability(self, asset):
+        """Get vulnerability vector for given asset."""
+        if asset == "nodes":
+            return self.topology.node_data["vulnerability"]
+        elif asset == "links":
+            return self.topology.link_data["vulnerability"]
+
+    def set_vulnerability(self, asset, vuln):
+        """Set vulnerability vector for given asset and update risk vector."""
+        if asset == "nodes":
+            assert len(self.topology.node_data["vulnerability"]) == len(vuln)
+            self.topology.node_data["vulnerability"] = vuln
+            self._compute_node_risk()
+        elif asset == "links":
+            assert len(self.topology.link_data["vulnerability"]) == len(vuln)
+            self.topology.link_data["vulnerability"] = vuln
+            self._compute_link_risk()
+
+    def get_consequence(self, asset):
+        """Get consequence vector for given asset."""
+        if asset == "nodes":
+            return self.topology.node_data["consequence"]
+        elif asset == "links":
+            return self.topology.link_data["consequence"]
+
+    def set_consequence(self, asset, vuln):
+        """Set consequence vector for given asset and update risk vector."""
+        if asset == "nodes":
+            assert len(self.topology.node_data["consequence"]) == len(vuln)
+            self.topology.node_data["consequence"] = vuln
+            self._compute_node_risk()
+        elif asset == "links":
+            assert len(self.topology.link_data["consequence"]) == len(vuln)
+            self.topology.link_data["consequence"] = vuln
+            self._compute_link_risk()
+
+    def get_risk(self, asset):
+        """Get risk vector for given asset."""
+        if asset == "nodes":
+            return self.topology.node_data["risk"]
+        elif asset == "links":
+            return self.topology.link_data["risk"]
+
+    def compute_risk(self, threat, vuln, cons):
+        """Compute risk from threat, vulnerability and consequence vectors."""
         return [t * v * c for t, v, c in zip(threat, vuln, cons)]
 
     def find_critical_asset(self, asset, attribute):
