@@ -1,5 +1,7 @@
 # Suite of Network Risk Assessment Methods (SNRAM)
 
+NB. This project is under development (currently not usable).
+
 ## Licensing
 
 SNRAM is released under the [MIT](LICENSE) license.
