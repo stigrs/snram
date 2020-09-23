@@ -51,21 +51,19 @@ def driver(xlsx_file, **kwargs):
     # Identify critical assets:
     network_risk.critical_assets()
 
-    """
     if run_type == "stackelberg":
-        topology = stackelberg(topology, budget, max_iter)
+        topology = stackelberg(network_risk, budget, max_iter)
     elif run_type == "prepare":
-        defender = Defender(topology, budget)
+        defender = Defender(network_risk, budget)
         topology = defender.prepare()
     elif run_type == "mitigate":
-        defender = Defender(topology, budget)
+        defender = Defender(network_risk, budget)
         topology = defender.mitigate()
     elif run_type == "threat":
-        attacker = Attacker(topology, budget)
+        attacker = Attacker(network_risk, budget)
         topology = attacker.threat()
     elif run_type == "interdict":
         interdiction(topology, interdict, attacks, solver, tee)
-    """
 
     if save_xlsx:
         topology.to_excel(save_xlsx)

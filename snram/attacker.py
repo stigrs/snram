@@ -120,7 +120,7 @@ class Attacker:
                   (i, sij, res[i][1], res[i][2], res[i][3]))
         print("%s" % ("-" * 70))
 
-        self.network_risk.topology.print()
-        self.network_risk.critical_asset_analysis()
+        self.network_risk.risk_assessment()
+        self.network_risk.critical_assets()
 
         return self.network_risk.topology
