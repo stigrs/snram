@@ -4,7 +4,7 @@
 # LICENSE.txt or http://www.opensource.org/licenses/mit-license.php for terms
 # and conditions.
 
-# The source code is based on the PyomoGallery example max_flow_interdict.py
+# The source code is based on the PyomoGallery example sp_interdict.py
 # provided under the following license:
 #
 # Copyright (c) 2015, Sandia National Laboratories

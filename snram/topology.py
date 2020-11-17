@@ -14,6 +14,7 @@ from networkx import nx
 
 class NetworkTopology:
     """Class for representing network topologies."""
+
     def __init__(self, xlsx_file):
         self.node_data = None
         self.link_data = None
@@ -47,6 +48,7 @@ class NetworkTopology:
         """Load network topology from Excel file."""
         self.node_data = pd.read_excel(xlsx_file, sheet_name="nodes")
         self.link_data = pd.read_excel(xlsx_file, sheet_name="links")
+        self.link_data["xbar"] = 0  # needed for network interdiction
         self.node_data.set_index(["node"], inplace=True)
         self.link_data.set_index(["start_node", "end_node"], inplace=True)
         self.node_set = self.node_data.index.unique()

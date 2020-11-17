@@ -45,11 +45,12 @@ from snram.topology import NetworkTopology
 
 class MaxFlowInterdiction:
     """Class to compute max-flow network interdiction."""
+
     def __init__(self, topology, attacks=0, solver="cplex", tee=False):
         self._topology = None
         if isinstance(topology, NetworkTopology):
             self._topology = topology
-        elif isinstance(topology, str): # filename is provided
+        elif isinstance(topology, str):  # filename is provided
             self._topology = NetworkTopology(topology)
         else:
             raise AttributeError("unknown topology provided")
@@ -72,9 +73,9 @@ class MaxFlowInterdiction:
         model.dual = pe.Suffix(direction=pe.Suffix.IMPORT)
 
         # Add the sets:
-        model.node_set = pe.Set(initialize=self._topology.get_node_set())
+        model.node_set = pe.Set(initialize=self._topology.node_set)
         model.edge_set = pe.Set(
-            initialize=self._topology.get_arc_set(), dimen=2)
+            initialize=self._topology.link_set, dimen=2)
 
         # Create the variables:
         model.y = pe.Var(model.edge_set, domain=pe.NonNegativeReals)
@@ -82,13 +83,13 @@ class MaxFlowInterdiction:
 
         # Create the objective:
         def obj_rule(model):
-            return model.v - 1.1 * sum(data["xbar"] * model.y[e] \
-                for e, data in self._topology.get_arc_data().iterrows())
+            return model.v - 1.1 * sum(data["xbar"] * model.y[e]
+                                       for e, data in self._topology.link_data.iterrows())
         model.OBJ = pe.Objective(rule=obj_rule, sense=pe.maximize)
 
         # Create the constraints, one for each node:
         def flow_bal_rule(model, n):
-            tmp = self._topology.get_arc_data().reset_index()
+            tmp = self._topology.link_data.reset_index()
             successors = tmp.loc[tmp.start_node == n, "end_node"].values
             predecessors = tmp.loc[tmp.end_node == n, "start_node"].values
             lhs = sum(model.y[(i, n)] for i in predecessors) - \
@@ -104,7 +105,7 @@ class MaxFlowInterdiction:
 
         # Capacity constraints, one for each edge:
         def capacity_rule(model, i, j):
-            capacity = self._topology.get_arc_data()["capacity"].get((i, j), -1)
+            capacity = self._topology.link_data["capacity"].get((i, j), -1)
             if capacity < 0:
                 return pe.Constraint.Skip
             return model.y[(i, j)] <= capacity
@@ -118,9 +119,9 @@ class MaxFlowInterdiction:
         model = pe.ConcreteModel()
 
         # Add the sets:
-        model.node_set = pe.Set(initialize=self._topology.get_node_set())
+        model.node_set = pe.Set(initialize=self._topology.node_set)
         model.edge_set = pe.Set(
-            initialize=self._topology.get_arc_set(), dimen=2)
+            initialize=self._topology.link_set, dimen=2)
 
         # Create the variables:
         model.rho = pe.Var(model.node_set, domain=pe.Reals)
@@ -129,17 +130,19 @@ class MaxFlowInterdiction:
 
         # Create the objective:
         def obj_rule(model):
-            return sum(data["capacity"] * model.pi[e] \
-                for e, data in self._topology.get_arc_data().iterrows() \
-                    if data["capacity"] >= 0)
+            return sum(data["capacity"] * model.pi[e]
+                       for e, data in self._topology.link_data.iterrows()
+                       if data["capacity"] >= 0)
         model.OBJ = pe.Objective(rule=obj_rule, sense=pe.minimize)
 
         # Create the constraints for y_ij:
         def edge_constraint_rule(model, i, j):
-            attackable = int(self._topology.get_arc_data()["attackable"].get((i, j), 0))
-            has_cap = int(self._topology.get_arc_data()["capacity"].get((i, j), -1) >= 0)
+            attackable = int(
+                self._topology.link_data["attackable"].get((i, j), 0))
+            has_cap = int(
+                self._topology.link_data["capacity"].get((i, j), -1) >= 0)
             return model.rho[j] - model.rho[i] + model.pi[(i, j)] * has_cap >= \
-                0 - 1.1 * model.x[(i, j)]*attackable
+                0 - 1.1 * model.x[(i, j)] * attackable
         model.DualEdgeConstraint = pe.Constraint(
             model.edge_set, rule=edge_constraint_rule)
 
@@ -151,7 +154,7 @@ class MaxFlowInterdiction:
         # Create the interdiction budget constraint:
         def block_limit_rule(model):
             model.attacks = self._attacks
-            return pe.summation(model.x) <= model.attacks # pylint: disable=no-member
+            return pe.summation(model.x) <= model.attacks  # pylint: disable=no-member
         model.BlockLimit = pe.Constraint(rule=block_limit_rule)
 
         # Return the model:
@@ -167,8 +170,8 @@ class MaxFlowInterdiction:
 
         # Solve the dual first:
         self._idual.BlockLimit.construct()
-        self._idual.BlockLimit._constructed = False # pylint: disable=protected-access
-        del self._idual.BlockLimit._data[None] # pylint: disable=protected-access
+        self._idual.BlockLimit._constructed = False  # pylint: disable=protected-access
+        del self._idual.BlockLimit._data[None]  # pylint: disable=protected-access
         self._idual.BlockLimit.reconstruct()
         self._idual.preprocess()
         results = solver.solve(self._idual, tee=self._tee)
@@ -182,14 +185,13 @@ class MaxFlowInterdiction:
         # Put interdiction into xbar and solve primal:
         self._idual.solutions.load_from(results)
 
-        for e in self._topology.get_arc_data().index:
-            self._topology.get_arc_data().loc[e, "xbar"] = \
-                self._idual.x[e].value
+        for e in self._topology.link_data.index:
+            self._topology.link_data.loc[e, "xbar"] = self._idual.x[e].value
 
         self._primal.OBJ.construct()
-        self._primal.OBJ._constructed = False # pylint: disable=protected-access
-        self._primal.OBJ._init_sense = pe.maximize # pylint: disable=protected-access
-        del self._primal.OBJ._data[None] # pylint: disable=protected-access
+        self._primal.OBJ._constructed = False  # pylint: disable=protected-access
+        self._primal.OBJ._init_sense = pe.maximize  # pylint: disable=protected-access
+        del self._primal.OBJ._data[None]  # pylint: disable=protected-access
         self._primal.OBJ.reconstruct()
         self._primal.preprocess()
         results = solver.solve(self._primal, tee=self._tee)
@@ -208,7 +210,7 @@ class MaxFlowInterdiction:
 
     def print(self):
         """Print solution."""
-        edges = sorted(self._topology.get_arc_set())
+        edges = sorted(self._topology.link_set)
         print("%s" % ("-" * 70))
         print("Number of attacks: %d" % self._attacks)
         print("%s" % ("-" * 70))
@@ -219,9 +221,9 @@ class MaxFlowInterdiction:
                 eij = "(" + str(e[0]) + ", " + str(e[1]) + ")"
                 print("Interdicted arc %d: %s" % (it, eij))
         print("%s" % ("-" * 70))
-        print("Arc\t\tFlow")
+        print("Link\t\tFlow")
         print("%-12s" % ("-" * 70))
-        for ei, ej in self._topology.get_arc_set():
+        for ei, ej in self._topology.link_set:
             flow = self._primal.y[(ei, ej)].value
             eij = "(" + str(ei) + ", " + str(ej) + ")"
             print("%-12s\t%.2f" % (eij, flow))
