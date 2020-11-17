@@ -29,7 +29,10 @@ class NetworkTopology:
         # Create graph from list of attackable nodes.
         graph = nx.Graph()
         for link, data in self.link_data.iterrows():
-            graph.add_edge(link[0], link[1], capacity=data["capacity"])
+            if "capacity" in data.keys():
+                graph.add_edge(link[0], link[1], capacity=data["capacity"])
+            else:
+                graph.add_edge(link[0], link[1])
         return graph
 
     def _create_subgraph(self):

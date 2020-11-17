@@ -45,11 +45,12 @@ from snram.topology import NetworkTopology
 
 class SPInterdiction:
     """Class to compute shortest-path interdiction."""
+
     def __init__(self, topology, attacks=0, solver="cplex", tee=False):
         self._topology = None
         if isinstance(topology, NetworkTopology):
             self._topology = topology
-        elif isinstance(topology, str): # filename is provided
+        elif isinstance(topology, str):  # filename is provided
             self._topology = NetworkTopology(topology)
         else:
             raise AttributeError("unknown topology provided")
@@ -59,8 +60,8 @@ class SPInterdiction:
         self._tee = tee
 
         # Compute nCmax
-        self._nCmax = len(self._topology.get_node_set()) \
-            * self._topology.get_arc_data()["risk"].max()
+        self._nCmax = len(self._topology.node_set) \
+            * self._topology.link_data["risk"].max()
 
         self._primal = self._create_primal()
         self._idual = self._create_interdict_dual()
@@ -76,8 +77,8 @@ class SPInterdiction:
         model.dual = pe.Suffix(direction=pe.Suffix.IMPORT)
 
         # Add the sets:
-        model.node_set = pe.Set(initialize=self._topology.get_node_set())
-        model.edge_set = pe.Set(initialize=self._topology.get_arc_set(), dimen=2)
+        model.node_set = pe.Set(initialize=self._topology.node_set)
+        model.edge_set = pe.Set(initialize=self._topology.link_set, dimen=2)
 
         # Create the variables:
         model.y = pe.Var(model.edge_set, domain=pe.NonNegativeReals)
@@ -86,20 +87,20 @@ class SPInterdiction:
 
         # Create the objective:
         def obj_rule(model):
-            return  sum((data["risk"] + data["xbar"] * (2 * self._nCmax + 1)) \
-                * model.y[e] for e, data in self._topology.get_arc_data().iterrows()) \
-                    + sum(self._nCmax * (model.UnsatSupply[n] + model.UnsatDemand[n]) \
-                        for n, data in self._topology.get_node_data().iterrows())
+            return sum((data["risk"] + data["xbar"] * (2 * self._nCmax + 1))
+                       * model.y[e] for e, data in self._topology.link_data.iterrows()) \
+                + sum(self._nCmax * (model.UnsatSupply[n] + model.UnsatDemand[n])
+                      for n, data in self._topology.node_data.iterrows())
         model.OBJ = pe.Objective(rule=obj_rule, sense=pe.minimize)
 
         # Create the constraints, one for each node:
         def flow_bal_rule(model, n):
-            tmp = self._topology.get_arc_data().reset_index()
+            tmp = self._topology.link_data.reset_index()
             successors = tmp.loc[tmp.start_node == n, "end_node"].values
             predecessors = tmp.loc[tmp.end_node == n, "start_node"].values
             lhs = sum(model.y[(i, n)] for i in predecessors) \
                 - sum(model.y[(n, i)] for i in successors)
-            imbalance = self._topology.get_node_data()["supply_demand"].get(n, 0)
+            imbalance = self._topology.node_data["supply_demand"].get(n, 0)
             supply_node = int(imbalance < 0)
             demand_node = int(imbalance > 0)
             rhs = imbalance + model.UnsatSupply[n] * supply_node \
@@ -118,8 +119,8 @@ class SPInterdiction:
         model = pe.ConcreteModel()
 
         # Add the sets:
-        model.node_set = pe.Set(initialize=self._topology.get_node_set())
-        model.edge_set = pe.Set(initialize=self._topology.get_arc_set(), dimen=2)
+        model.node_set = pe.Set(initialize=self._topology.node_set)
+        model.edge_set = pe.Set(initialize=self._topology.link_set, dimen=2)
 
         # Create the variables:
         model.rho = pe.Var(model.node_set, domain=pe.Reals)
@@ -127,20 +128,22 @@ class SPInterdiction:
 
         # Create the objective:
         def obj_rule(model):
-            return  sum(data["supply_demand"] * model.rho[n] \
-                for n, data in self._topology.get_node_data().iterrows())
+            return sum(data["supply_demand"] * model.rho[n]
+                       for n, data in self._topology.node_data.iterrows())
         model.OBJ = pe.Objective(rule=obj_rule, sense=pe.maximize)
 
         # Create the constraints for y_ij:
         def edge_constraint_rule(model, i, j):
-            attackable = int(self._topology.get_arc_data()["attackable"].get((i, j), 0))
-            return model.rho[j] - model.rho[i] <= self._topology.get_arc_data()["risk"].get((i, j), 0) \
+            attackable = int(
+                self._topology.link_data["attackable"].get((i, j), 0))
+            return model.rho[j] - model.rho[i] <= self._topology.link_data["risk"].get((i, j), 0) \
                 + (2 * self._nCmax + 1) * model.x[(i, j)] * attackable
-        model.DualEdgeConstraint = pe.Constraint(model.edge_set, rule=edge_constraint_rule)
+        model.DualEdgeConstraint = pe.Constraint(
+            model.edge_set, rule=edge_constraint_rule)
 
         # Create constraints for the UnsatDemand variables:
         def unsat_constraint_rule(model, n):
-            imbalance = self._topology.get_node_data()["supply_demand"].get(n, 0)
+            imbalance = self._topology.node_data["supply_demand"].get(n, 0)
             supply_node = int(imbalance < 0)
             demand_node = int(imbalance > 0)
             if supply_node:
@@ -148,12 +151,13 @@ class SPInterdiction:
             if demand_node:
                 return model.rho[n] <= self._nCmax
             return pe.Constraint.Skip
-        model.UnsatConstraint = pe.Constraint(model.node_set, rule=unsat_constraint_rule)
+        model.UnsatConstraint = pe.Constraint(
+            model.node_set, rule=unsat_constraint_rule)
 
         # Create the interdiction budget constraint:
         def block_limit_rule(model):
             model.attacks = self._attacks
-            return pe.summation(model.x) <= model.attacks # pylint: disable=no-member
+            return pe.summation(model.x) <= model.attacks  # pylint: disable=no-member
         model.BlockLimit = pe.Constraint(rule=block_limit_rule)
 
         # Return the model:
@@ -169,7 +173,7 @@ class SPInterdiction:
 
         # Solve the dual first:
         self._idual.BlockLimit.construct()
-        self._idual.BlockLimit._constructed = False # pylint: disable=protected-access
+        self._idual.BlockLimit._constructed = False  # pylint: disable=protected-access
         del self._idual.BlockLimit._data[None]  # pylint: disable=protected-access
         self._idual.BlockLimit.reconstruct()
         self._idual.preprocess()
@@ -185,12 +189,12 @@ class SPInterdiction:
         # Put interdictions into xbar and solve primal:
         self._idual.solutions.load_from(results)
 
-        for e in self._topology.get_arc_data().index:
-            self._topology.get_arc_data().loc[e, "xbar"] = self._idual.x[e].value
+        for e in self._topology.link_data.index:
+            self._topology.link_data.loc[e, "xbar"] = self._idual.x[e].value
 
         self._primal.OBJ.construct()
-        self._primal.OBJ._constructed = False # pylint: disable=protected-access
-        self._primal.OBJ._init_sense = pe.minimize # pylint: disable=protected-access
+        self._primal.OBJ._constructed = False  # pylint: disable=protected-access
+        self._primal.OBJ._init_sense = pe.minimize  # pylint: disable=protected-access
         del self._primal.OBJ._data[None]  # pylint: disable=protected-access
         self._primal.OBJ.reconstruct()
         self._primal.preprocess()
@@ -210,7 +214,7 @@ class SPInterdiction:
 
     def print(self):
         """Print solution."""
-        edges = sorted(self._topology.get_arc_set())
+        edges = sorted(self._topology.link_set)
         print("%s" % ("-" * 70))
         print("Number of attacks: %d" % self._attacks)
         print("%s" % ("-" * 70))
@@ -220,19 +224,21 @@ class SPInterdiction:
                 it += 1
                 eij = "(" + str(e[0]) + ", " + str(e[1]) + ")"
                 print("Interdicted arc %d: %s" % (it, eij))
-        nodes = sorted(self._topology.get_node_data().index)
+        nodes = sorted(self._topology.node_data.index)
         for n in nodes:
             remain_supply = self._primal.UnsatSupply[n].value
             if remain_supply > 0:
-                print("Remaining supply on node %s: %.2f" % (str(n), remain_supply))
+                print("Remaining supply on node %s: %.2f" %
+                      (str(n), remain_supply))
         for n in nodes:
             remain_demand = self._primal.UnsatDemand[n].value
             if remain_demand > 0:
-                print("Remaining demand on node %s: %.2f" % (str(n), remain_demand))
+                print("Remaining demand on node %s: %.2f" %
+                      (str(n), remain_demand))
         print("%s" % ("-" * 70))
-        print("Arc\t\tFlow")
+        print("Link\t\tFlow")
         print("%-12s" % ("-" * 70))
-        for ei, ej in self._topology.get_arc_set():
+        for ei, ej in self._topology.link_set:
             flow = self._primal.y[(ei, ej)].value
             eij = "(" + str(ei) + ", " + str(ej) + ")"
             print("%-12s\t%.2f" % (eij, flow))
