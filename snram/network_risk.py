@@ -13,11 +13,12 @@ from snram.risk_score import CONS_MIN
 
 class NetworkRisk:
     """Class for handling network risks."""
+
     def __init__(self, topology):
         self.topology = None
         if isinstance(topology, NetworkTopology):
             self.topology = topology
-        elif isinstance(topology, str): # filename is provided
+        elif isinstance(topology, str):  # filename is provided
             self.topology = NetworkTopology(topology)
         else:
             raise AttributeError("unknown topology provided")
@@ -175,7 +176,8 @@ class NetworkRisk:
                                                   self.topology.link_data["consequence"],
                                                   self.topology.link_data["risk"]):
             link_ij = "(" + str(link[0]) + ", " + str(link[1]) + ")"
-            print("%-12s\t%d\t%d\t%d\t%d" % (link_ij, threat, vuln, cons, risk))
+            print("%-12s\t%d\t%d\t%d\t%d" %
+                  (link_ij, threat, vuln, cons, risk))
         print("%s" % ("-" * 70))
         print("T = Threat (1-5)")
         print("V = Vulnerability (1-5)")
@@ -208,19 +210,19 @@ class NetworkRisk:
         link_data = self.topology.link_data
         idx, val = self.find_critical_asset(link_data, "threat")
         sij = "(" + str(idx[0]) + ", " + str(idx[1]) + ")"
-        print("Link with largest threat:         %-12s\t%d" % (sij, val))
+        print("Link with largest threat:        %-12s\t%d" % (sij, val))
 
         idx, val = self.find_critical_asset(link_data, "vulnerability")
         sij = "(" + str(idx[0]) + ", " + str(idx[1]) + ")"
-        print("Link with largest vulnerability:  %-12s\t%d" % (sij, val))
+        print("Link with largest vulnerability: %-12s\t%d" % (sij, val))
 
         idx, val = self.find_critical_asset(link_data, "consequence")
         sij = "(" + str(idx[0]) + ", " + str(idx[1]) + ")"
-        print("Link with largest consequence:    %-12s\t%d" % (sij, val))
+        print("Link with largest consequence:   %-12s\t%d" % (sij, val))
 
         idx, val = self.find_critical_asset(link_data, "risk")
         sij = "(" + str(idx[0]) + ", " + str(idx[1]) + ")"
-        print("Link with largest risk:           %-12s\t%d" % (sij, val))
+        print("Link with largest risk:          %-12s\t%d" % (sij, val))
         print("%s" % ("-" * 70))
 
         art_pts = self.topology.articulation_points()
