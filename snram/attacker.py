@@ -49,14 +49,14 @@ class Attacker:
                 threat_tmp[i] = THREAT_MAX
 
         risk_new = self.network_risk.compute_risk(threat_tmp, vuln, cons)
-        indx = 0
+        idx = 0
         delta_risk_max = 0
         for i, r_new, r_old in zip(count(), risk_new, risk_old):
             delta_risk = (r_new - r_old) / r_old
             if delta_risk > delta_risk_max:
-                indx = i
+                idx = i
                 delta_risk_max = delta_risk
-        threat_new[indx] = threat_tmp[indx]
+        threat_new[idx] = threat_tmp[idx]
         # Ugly hack:
         # Need to store returned result in res before set_threat() is called.
         # Otherwise threat_old[indx] == threat_new[indx], which is strange ...
@@ -64,7 +64,7 @@ class Attacker:
         #   return (indx, threat_old[indx], threat_new[indx])
         # after calling set_threat().
         # TODO: Should look more into what is causing this behaviour.
-        res = (indx, threat_old[indx], threat_new[indx])
+        res = (idx, threat_old[idx], threat_new[idx])
         self.network_risk.set_threat(asset, threat_new)
         return res
 
@@ -136,5 +136,4 @@ class Attacker:
 
         self.network_risk.risk_assessment()
         self.network_risk.critical_assets()
-
         return self.network_risk.topology
