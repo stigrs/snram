@@ -6,6 +6,7 @@
 
 """Provides an attacker model."""
 
+from copy import deepcopy
 from itertools import count
 from snram.topology import NetworkTopology
 from snram.network_risk import NetworkRisk
@@ -14,13 +15,14 @@ from snram.risk_score import THREAT_MAX, THREAT_INC
 
 class Attacker:
     """Class providing attacker model."""
+
     def __init__(self, network_risk, budget=1):
         self.network_risk = None
         if isinstance(network_risk, NetworkRisk):
             self.network_risk = network_risk
-        elif isinstance(network_risk, NetworkTopology): # topology is provided
+        elif isinstance(network_risk, NetworkTopology):  # topology is provided
             self.network_risk = NetworkRisk(network_risk)
-        elif isinstance(network_risk, str): # filename is provided
+        elif isinstance(network_risk, str):  # filename is provided
             self.network_risk = NetworkRisk(network_risk)
         else:
             raise AttributeError("unknown topology provided")
@@ -39,13 +41,14 @@ class Attacker:
         risk_old = self.network_risk.get_risk(asset)
 
         # Brute force; is there a faster way?
-        threat_new = threat_old
-        for i, threat in enumerate(threat_new):
-            threat_new[i] = threat + THREAT_INC
-            if threat_new[i] > THREAT_MAX:
-                threat_new[i] = THREAT_MAX
+        threat_new = deepcopy(threat_old)
+        threat_tmp = deepcopy(threat_old)
+        for i, threat in enumerate(threat_tmp):
+            threat_tmp[i] = threat + THREAT_INC
+            if threat_tmp[i] > THREAT_MAX:
+                threat_tmp[i] = THREAT_MAX
 
-        risk_new = self.network_risk.compute_risk(threat_new, vuln, cons)
+        risk_new = self.network_risk.compute_risk(threat_tmp, vuln, cons)
         indx = 0
         delta_risk_max = 0
         for i, r_new, r_old in zip(count(), risk_new, risk_old):
@@ -53,9 +56,17 @@ class Attacker:
             if delta_risk > delta_risk_max:
                 indx = i
                 delta_risk_max = delta_risk
-        threat_old[indx] = threat_new[indx]
-        self.network_risk.set_threat(asset, threat_old)
-        return (indx, threat_old[indx], threat_new[indx])
+        threat_new[indx] = threat_tmp[indx]
+        # Ugly hack:
+        # Need to store returned result in res before set_threat() is called.
+        # Otherwise threat_old[indx] == threat_new[indx], which is strange ...
+        # It would be more elegant to do:
+        #   return (indx, threat_old[indx], threat_new[indx])
+        # after calling set_threat().
+        # TODO: Should look more into what is causing this behaviour.
+        res = (indx, threat_old[indx], threat_new[indx])
+        self.network_risk.set_threat(asset, threat_new)
+        return res
 
     def _find_attackable_assets(self, asset):
         # Find attackable assets and attack weights from threat x vulnerability:
@@ -83,7 +94,7 @@ class Attacker:
             idx, threat_old, threat_new = self._increase_asset_threat(asset)
 
             # Compute sum of risks:
-            risk_sum = self.network_risk.get_risk("links").sum()
+            risk_sum = self.network_risk.get_risk(asset).sum()
             res.append([idx, threat_old, threat_new, risk_sum])
         return (res, self.network_risk.topology)
 
@@ -99,23 +110,26 @@ class Attacker:
 
         # Attack nodes:
         res, self.network_risk.topology = self.maximise_threat("nodes")
+        node_set = self.network_risk.topology.node_set
         print("Maximise Threat by Exploiting Node Vulnerabilities:")
         print("%s" % ("-" * 70))
         print("#\tNode\t\tT(before)\tT(after)\tR_sum")
         print("%s" % ("-" * 70))
         for i in range(self.budget):
             print("%d\t%-12s\t%d\t\t%d\t\t%d" %
-                  (i, res[i][0], res[i][1], res[i][2], res[i][3]))
+                  (i, node_set[res[i][0]], res[i][1], res[i][2], res[i][3]))
         print("%s" % ("-" * 70))
 
         # Attack links:
         res, self.network_risk.topology = self.maximise_threat("links")
+        link_set = self.network_risk.topology.link_set
         print("Maximise Threat by Exploiting Link Vulnerabilities:")
         print("%s" % ("-" * 70))
         print("#\tLink\t\tT(before)\tT(after)\tR_sum")
         print("%s" % ("-" * 70))
         for i in range(self.budget):
-            sij = "(" + str(res[i][0][0]) + ", " + str(res[i][0][1]) + ")"
+            sij = "(" + str(link_set[res[i][0]][0]) + \
+                ", " + str(link_set[res[i][0]][1]) + ")"
             print("%d\t%-12s\t%d\t\t%d\t\t%d" %
                   (i, sij, res[i][1], res[i][2], res[i][3]))
         print("%s" % ("-" * 70))
