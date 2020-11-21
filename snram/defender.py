@@ -28,8 +28,13 @@ class Defender:
 
     def _reduce_asset_vulnerability(self, asset):
         # Reduce vulnerability for the most critical asset.
+        asset_data = None
+        if asset == "nodes":
+            asset_data = self.network_risk.topology.node_data
+        elif asset == "links":
+            asset_data = self.network_risk.topology.link_data
         idx, v_old = self.network_risk.find_critical_asset(
-            asset, "vulnerability")
+            asset_data, "vulnerability")
         v_new = v_old - VULN_INC
         vuln = self.network_risk.get_vulnerability(asset)
         if v_new < VULN_MIN:  # vulnerability cannot be reduced below VULN_MIN
@@ -41,8 +46,13 @@ class Defender:
 
     def _reduce_asset_consequence(self, asset):
         # Reduce consequence for the most critical asset.
+        asset_data = None
+        if asset == "nodes":
+            asset_data = self.network_risk.topology.node_data
+        elif asset == "links":
+            asset_data = self.network_risk.topology.link_data
         idx, c_old = self.network_risk.find_critical_asset(
-            asset, "consequence")
+            asset_data, "consequence")
         c_new = c_old - CONS_INC
         cons = self.network_risk.get_consequence(asset)
         if c_new < CONS_MIN:  # consequence cannot be reduced below CONS_MIN
@@ -54,6 +64,7 @@ class Defender:
 
     def minimise_vulnerability(self, asset):
         """Minimise vulnerabilities given budget constraint."""
+        assert asset == "nodes" or asset == "links"
         res = []
         for _ in range(self.budget):
             # Reduce vulnerability for most critical asset:
@@ -66,6 +77,7 @@ class Defender:
 
     def minimise_consequence(self, asset):
         """Minimise consequences given budget constraint."""
+        assert asset == "nodes" or asset == "links"
         res = []
         for _ in range(self.budget):
             # Reduce consequence for most critical asset:
