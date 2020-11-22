@@ -100,29 +100,27 @@ class Defender:
 
         # Defend nodes:
         res, self.network_risk.topology = self.minimise_vulnerability("nodes")
-        node_set = self.network_risk.topology.node_set
         print("Node Vulnerability Reduction:")
         print("%s" % ("-" * 70))
         print("#\tNode\t\tV(before)\tV(after)\tR_sum")
         print("%s" % ("-" * 70))
         for i in range(self.budget):
             print("%d\t%-12s\t%d\t\t%d\t\t%d" %
-                  (i, node_set[res[i][0]], res[i][1], res[i][2], res[i][3]))
+                  (i, res[i][0], res[i][1], res[i][2], res[i][3]))
         print("%s" % ("-" * 70))
 
         # Defend links:
         res, self.network_risk.topology = self.minimise_vulnerability("links")
-        link_set = self.network_risk.topology.link_set
         print("Link Vulnerability Reduction:")
         print("%s" % ("-" * 70))
-        print("#\tLink\t\tT(before)\tT(after)\tR_sum")
+        print("#\tLink\t\tV(before)\tV(after)\tR_sum")
         print("%s" % ("-" * 70))
         for i in range(self.budget):
-            sij = "(" + str(link_set[res[i][0]][0]) + \
-                ", " + str(link_set[res[i][0]][1]) + ")"
+            sij = "(" + str(res[i][0][0]) + ", " + str(res[i][0][1]) + ")"
             print("%d\t%-12s\t%d\t\t%d\t\t%d" %
                   (i, sij, res[i][1], res[i][2], res[i][3]))
         print("%s" % ("-" * 70))
+        print()
 
         self.network_risk.risk_assessment()
         self.network_risk.critical_assets()
@@ -140,29 +138,27 @@ class Defender:
 
         # Defend nodes:
         res, self.network_risk.topology = self.minimise_consequence("nodes")
-        node_set = self.network_risk.topology.node_set
         print("Node Consequence Reduction:")
         print("%s" % ("-" * 70))
-        print("#\tNode\t\tV(before)\tV(after)\tR_sum")
+        print("#\tNode\t\tC(before)\tC(after)\tR_sum")
         print("%s" % ("-" * 70))
         for i in range(self.budget):
             print("%d\t%-12s\t%d\t\t%d\t\t%d" %
-                  (i, node_set[res[i][0]], res[i][1], res[i][2], res[i][3]))
+                  (i, res[i][0], res[i][1], res[i][2], res[i][3]))
         print("%s" % ("-" * 70))
 
         # Defend links:
         res, self.network_risk.topology = self.minimise_consequence("links")
-        link_set = self.network_risk.topology.link_set
         print("Link Consequence Reduction:")
         print("%s" % ("-" * 70))
-        print("#\tLink\t\tT(before)\tT(after)\tR_sum")
+        print("#\tLink\t\tC(before)\tC(after)\tR_sum")
         print("%s" % ("-" * 70))
         for i in range(self.budget):
-            sij = "(" + str(link_set[res[i][0]][0]) + \
-                ", " + str(link_set[res[i][0]][1]) + ")"
+            sij = "(" + str(res[i][0][0]) + ", " + str(res[i][0][1]) + ")"
             print("%d\t%-12s\t%d\t\t%d\t\t%d" %
                   (i, sij, res[i][1], res[i][2], res[i][3]))
         print("%s" % ("-" * 70))
+        print()
 
         self.network_risk.risk_assessment()
         self.network_risk.critical_assets()

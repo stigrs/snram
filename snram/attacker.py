@@ -133,6 +133,7 @@ class Attacker:
             print("%d\t%-12s\t%d\t\t%d\t\t%d" %
                   (i, sij, res[i][1], res[i][2], res[i][3]))
         print("%s" % ("-" * 70))
+        print()
 
         self.network_risk.risk_assessment()
         self.network_risk.critical_assets()

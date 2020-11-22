@@ -233,3 +233,4 @@ class NetworkRisk:
             for node in art_pts:
                 print("%s, " % node, end="")
             print()
+        print()
