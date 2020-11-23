@@ -219,7 +219,7 @@ class MaxFlowInterdiction:
             if self._idual.x[e].value > 0:
                 it += 1
                 eij = "(" + str(e[0]) + ", " + str(e[1]) + ")"
-                print("Interdicted arc %d: %s" % (it, eij))
+                print("Interdicted link %d: %s" % (it, eij))
         print("%s" % ("-" * 70))
         print("Link\t\tFlow")
         print("%-12s" % ("-" * 70))

@@ -84,7 +84,7 @@ def _parse_args():
 
 
 if __name__ == "__main__":
-    args = _parse_args() # pylint: disable=invalid-name
+    args = _parse_args()  # pylint: disable=invalid-name
     driver(args.xlsx_file,
            png_file=args.png_file,
            save_xlsx=args.save_xlsx,

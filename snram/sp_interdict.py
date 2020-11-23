@@ -223,7 +223,7 @@ class SPInterdiction:
             if self._idual.x[e].value > 0:
                 it += 1
                 eij = "(" + str(e[0]) + ", " + str(e[1]) + ")"
-                print("Interdicted arc %d: %s" % (it, eij))
+                print("Interdicted link %d: %s" % (it, eij))
         nodes = sorted(self._topology.node_data.index)
         for n in nodes:
             remain_supply = self._primal.UnsatSupply[n].value
